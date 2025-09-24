@@ -199,7 +199,10 @@ class UnifiedSignalCalculator:
             distance_m = distance_km * 1000
             frequency_hz = self.ntn_config['frequency_ghz'] * 1e9
 
-            fspl_db = 20 * math.log10(4 * math.pi * distance_m * frequency_hz / 299792458)
+            # 🚨 Grade A要求：使用學術級物理常數，避免硬編碼
+            from shared.constants.physics_constants import PhysicsConstants
+            physics_consts = PhysicsConstants()
+            fspl_db = 20 * math.log10(4 * math.pi * distance_m * frequency_hz / physics_consts.SPEED_OF_LIGHT)
             return max(0, fspl_db)
 
         except Exception as e:

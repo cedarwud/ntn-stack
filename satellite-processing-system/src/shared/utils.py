@@ -9,10 +9,14 @@ import numpy as np
 from datetime import datetime, timezone, timedelta
 from typing import List, Tuple, Dict, Optional
 import logging
+# 🚨 Grade A要求：使用學術級物理常數
+from shared.constants.physics_constants import PhysicsConstants
+physics_consts = PhysicsConstants()
+
 
 # 物理常數
 EARTH_RADIUS_KM = 6371.0
-LIGHT_SPEED_M_S = 299792458.0
+LIGHT_SPEED_M_S = physics_consts.SPEED_OF_LIGHT
 GRAVITATIONAL_PARAMETER = 398600.4418  # km³/s²
 
 def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:

@@ -110,8 +110,8 @@ class SGP4OrbitalEngine:
         """
         計算衛星位置時間序列 - 純ECI座標輸出（符合Stage 1文檔規範）
         
-        🚨 關鍵修復：使用當前時間作為計算基準，用於可見性分析
-        ⚡ 效能優化：減少日誌輸出、批量計算時間點
+        🚨 強制原則：嚴格使用TLE epoch時間作為計算基準（Grade A學術標準）
+        ⚡ 性能優化：向量化計算、減少日誌輸出、批量處理時間點
         
         Args:
             satellite_data: 衛星數據，包含TLE信息
@@ -139,112 +139,128 @@ class SGP4OrbitalEngine:
             # 🛰️ 創建EarthSatellite對象
             satellite = EarthSatellite(tle_line1, tle_line2, satellite_name, self.timescale)
             
-            # 🚨 關鍵修復：使用當前時間作為計算基準，而非TLE epoch時間
-            # 這樣才能正確計算當前和未來的衛星可見性
+            # ✅ 強制符合學術標準：嚴格使用TLE epoch時間作為計算基準
+            # 這是Grade A強制要求，確保軌道計算精度和一致性
             tle_epoch = satellite.epoch
-            current_time = self.timescale.now()
-            calculation_base_time = current_time  # 改為使用當前時間
+            calculation_base_time = tle_epoch  # 🚨 絕對禁止使用datetime.now()
             
-            # ⚡ 效能優化：只輸出重要信息，減少日誌量
-            logger.debug(f"   📅 {satellite_name} TLE Epoch: {tle_epoch.utc_iso()}")
-            logger.debug(f"   🕐 計算基準時間: {calculation_base_time.utc_iso()}")
-            
-            # 檢查TLE數據新鮮度（重要：TLE精度隨時間衰減）
-            time_diff_seconds = abs((current_time.utc_datetime() - tle_epoch.utc_datetime()).total_seconds())
-            time_diff_days = time_diff_seconds / 86400.0  # 86400秒 = 1天
-
-            # ⚡ 效能優化：只在數據過舊時警告，減少日誌輸出
-            if time_diff_days > 7:
-                logger.warning(f"🚨 {satellite_name} TLE數據過舊({time_diff_days:.1f}天)，軌道預測可能嚴重失準！")
-            elif time_diff_days > 3:
-                logger.debug(f"⚠️ {satellite_name} TLE數據較舊({time_diff_days:.1f}天)")
-            
-            # 🔧 生成時間點（根據星座類型決定點數）
+            # ⚡ 性能優化：預計算constellation參數，避免重複字符串操作
             constellation = satellite_data.get('constellation', '').lower()
             
+            # 🔧 生成時間點（根據星座類型決定點數）- 優化算法
             if constellation == 'starlink':
                 # Starlink: 96分鐘軌道，每30秒1點 = 192個點
                 num_points = 192
                 actual_duration_minutes = 96
             elif constellation == 'oneweb':
-                # OneWeb: 108分鐘軌道，但文檔要求218個點
-                # 218點 * 30秒 = 109分鐘，接近實際軌道週期
+                # OneWeb: 108分鐘軌道，文檔要求218個點
                 num_points = 218  
-                actual_duration_minutes = 109  # 218點 * 0.5分鐘/點
+                actual_duration_minutes = 109
             else:
                 # 預設值
-                num_points = 240  # 120分鐘 / 0.5分鐘
+                num_points = 240
                 actual_duration_minutes = time_range_minutes
             
             interval_minutes = actual_duration_minutes / num_points
             
-            # ⚡ 效能優化：批量生成時間點陣列
-            time_points = []
-            for i in range(num_points):
-                minutes_offset = i * interval_minutes
-                # 🚨 關鍵修復：基於當前時間計算，而非TLE epoch時間
-                time_point = self.timescale.tt_jd(calculation_base_time.tt + minutes_offset / (24 * 60))
-                time_points.append((time_point, minutes_offset))
+            # ⚡ 性能優化：向量化時間點生成，減少循環開銷
+            time_offsets = [i * interval_minutes for i in range(num_points)]
+            time_points = [
+                self.timescale.tt_jd(calculation_base_time.tt + offset / (24 * 60))
+                for offset in time_offsets
+            ]
             
             logger.debug(f"   ⏰ {constellation} 軌道計算: {num_points}個位置點，間隔{interval_minutes*60:.1f}秒")
             
+            # ⚡ 性能優化：批量計算位置，減少函數調用開銷
             position_timeseries = []
             
-            # ⚡ 效能優化：批量計算位置，減少函數調用開銷
-            for i, (t, minutes_offset) in enumerate(time_points):
-                try:
-                    # 計算該時間點的位置
-                    geocentric = satellite.at(t)
-                    
-                    # ECI座標（地心慣性坐標系）
-                    eci_position = geocentric.position.km
-                    eci_x = float(eci_position[0])
-                    eci_y = float(eci_position[1]) 
-                    eci_z = float(eci_position[2])
-                    
-                    # 速度向量（如果需要）
-                    eci_velocity = geocentric.velocity.km_per_s
-                    eci_vx = float(eci_velocity[0])
-                    eci_vy = float(eci_velocity[1])
-                    eci_vz = float(eci_velocity[2])
-                    
-                    # 組裝純ECI位置數據（Stage 1只輸出軌道計算結果）
+            # 🚀 批量計算所有時間點的位置（最大性能優化）
+            try:
+                # Skyfield支持向量化計算 - 一次計算所有時間點
+                geocentric_positions = satellite.at(time_points)
+                
+                # 提取所有位置和速度數據
+                all_positions = geocentric_positions.position.km
+                all_velocities = geocentric_positions.velocity.km_per_s
+                
+                # ⚡ 向量化數據組裝，避免逐個處理
+                for i, (t, offset) in enumerate(zip(time_points, time_offsets)):
                     position_data = {
                         "timestamp": t.utc_iso(),
                         "position_eci": {
-                            "x": eci_x,
-                            "y": eci_y,
-                            "z": eci_z
+                            "x": float(all_positions[0][i]),
+                            "y": float(all_positions[1][i]),
+                            "z": float(all_positions[2][i])
                         },
                         "velocity_eci": {
-                            "x": eci_vx,
-                            "y": eci_vy,
-                            "z": eci_vz
+                            "x": float(all_velocities[0][i]),
+                            "y": float(all_velocities[1][i]),
+                            "z": float(all_velocities[2][i])
                         },
-                        # 🆕 添加計算元數據
+                        # 🆕 添加計算元數據（符合Grade A透明度要求）
                         "calculation_metadata": {
                             "tle_epoch": tle_epoch.utc_iso(),
                             "calculation_base_time": calculation_base_time.utc_iso(),
-                            "time_from_base_minutes": minutes_offset,
-                            "calculation_base": "current_time",
-                            "real_sgp4_calculation": True
+                            "time_from_base_minutes": offset,
+                            "calculation_base": "tle_epoch",  # 強制標記時間基準來源
+                            "real_sgp4_calculation": True,
+                            "time_base_compliance": True,  # 🆕 時間基準合規標記
+                            "vectorized_calculation": True  # 🆕 向量化計算標記
                         }
                     }
-                    
                     position_timeseries.append(position_data)
-                    
-                except Exception as pos_error:
-                    # ⚡ 效能優化：只記錄關鍵錯誤，避免過多日誌
-                    if i < 5:  # 只記錄前5個錯誤
-                        logger.warning(f"⚠️ 時間點 {i} 位置計算失敗: {pos_error}")
-                    continue
+                
+            except Exception as batch_error:
+                # 如果批量計算失敗，回退到逐個計算
+                logger.warning(f"⚠️ 批量計算失敗，回退到逐個計算: {batch_error}")
+                
+                for i, (t, offset) in enumerate(zip(time_points, time_offsets)):
+                    try:
+                        geocentric = satellite.at(t)
+                        
+                        # ECI座標（地心慣性坐標系）
+                        eci_position = geocentric.position.km
+                        eci_velocity = geocentric.velocity.km_per_s
+                        
+                        position_data = {
+                            "timestamp": t.utc_iso(),
+                            "position_eci": {
+                                "x": float(eci_position[0]),
+                                "y": float(eci_position[1]),
+                                "z": float(eci_position[2])
+                            },
+                            "velocity_eci": {
+                                "x": float(eci_velocity[0]),
+                                "y": float(eci_velocity[1]),
+                                "z": float(eci_velocity[2])
+                            },
+                            "calculation_metadata": {
+                                "tle_epoch": tle_epoch.utc_iso(),
+                                "calculation_base_time": calculation_base_time.utc_iso(),
+                                "time_from_base_minutes": offset,
+                                "calculation_base": "tle_epoch",
+                                "real_sgp4_calculation": True,
+                                "time_base_compliance": True,
+                                "vectorized_calculation": False  # 標記為回退計算
+                            }
+                        }
+                        position_timeseries.append(position_data)
+                        
+                    except Exception as pos_error:
+                        # ⚡ 性能優化：只記錄關鍵錯誤，避免過多日誌
+                        if i < 3:  # 只記錄前3個錯誤
+                            logger.warning(f"⚠️ 時間點 {i} 位置計算失敗: {pos_error}")
+                        continue
             
             # 統計更新
             self.calculation_stats["total_satellites_processed"] += 1
             if position_timeseries:
                 self.calculation_stats["successful_calculations"] += 1
                 self.calculation_stats["total_position_points"] += len(position_timeseries)
-                logger.debug(f"✅ 衛星 {satellite_name} ECI軌道計算完成: {len(position_timeseries)}個位置點")
+                # ⚡ 性能優化：減少不必要的debug日誌
+                if len(position_timeseries) < num_points * 0.9:  # 只在成功率低於90%時記錄
+                    logger.warning(f"⚠️ 衛星 {satellite_name} 計算成功率: {len(position_timeseries)}/{num_points}")
             else:
                 self.calculation_stats["failed_calculations"] += 1
                 logger.error(f"❌ 衛星 {satellite_name} 軌道計算失敗: 無有效位置點")

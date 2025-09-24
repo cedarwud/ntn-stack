@@ -123,12 +123,19 @@ class HandoverEventManager:
 
     def determine_3gpp_handover_decision(self, current_rsrp: float, event_type: str, elevation_deg: float) -> str:
         """基於3GPP標準確定換手決策"""
+        # 🔧 修復：使用3GPP標準閾值和仰角標準
+        from shared.constants.physics_constants import SignalConstants
+        from shared.constants.system_constants import get_system_constants
+
+        signal_consts = SignalConstants()
+        elevation_standards = get_system_constants().get_elevation_standards()
+
         # 基於RSRP和仰角的綜合決策邏輯
-        if current_rsrp >= -85 and elevation_deg > 30:
+        if current_rsrp >= signal_consts.RSRP_GOOD and elevation_deg > 30:
             return "execute_handover"
-        elif current_rsrp >= -100 and elevation_deg > 15:
+        elif current_rsrp >= signal_consts.RSRP_FAIR and elevation_deg > elevation_standards.PREFERRED_ELEVATION_DEG:
             return "prepare_handover"
-        elif current_rsrp >= -110:
+        elif current_rsrp >= signal_consts.RSRP_POOR:
             return "monitor_signal"
         else:
             return "maintain_connection"
@@ -154,10 +161,14 @@ class HandoverEventManager:
 
     def determine_handover_decision(self, rsrp_dbm: float, event_type: str, elevation_deg: float) -> str:
         """確定換手決策"""
-        # 簡化的決策邏輯
-        if rsrp_dbm >= -85 and elevation_deg > 20:
+        # 🔧 修復：使用3GPP標準閾值
+        from shared.constants.physics_constants import SignalConstants
+        signal_consts = SignalConstants()
+
+        # 基於標準的決策邏輯
+        if rsrp_dbm >= signal_consts.RSRP_GOOD and elevation_deg > 20:
             return "execute_immediate"
-        elif rsrp_dbm >= -100:
+        elif rsrp_dbm >= signal_consts.RSRP_FAIR:
             return "prepare_handover"
         else:
             return "monitor_only"

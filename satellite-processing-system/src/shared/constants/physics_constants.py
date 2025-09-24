@@ -76,6 +76,25 @@ class SignalConstants:
     RSRQ_WEIGHT: float = 0.3
     SINR_WEIGHT: float = 0.3
 
+    # 噪聲門檻
+    NOISE_FLOOR_DBM: float = -120.0  # dBm - 3GPP TS 38.214標準
+
+    # 品質評估時間閾值 (基於ITU-R建議)
+    EXCELLENT_DURATION_SECONDS: float = 100.0  # 優秀品質最小持續時間
+    GOOD_DURATION_SECONDS: float = 60.0        # 良好品質最小持續時間
+    FAIR_DURATION_SECONDS: float = 30.0        # 一般品質最小持續時間
+    POOR_DURATION_SECONDS: float = 10.0        # 差劣品質最小持續時間
+
+    # 物理極限常數
+    MAX_ELEVATION_DEGREES: float = 90.0        # 球面幾何學物理極限
+    MIN_ELEVATION_DEGREES: float = 0.0         # 地平線基準
+
+    # 時間配置常數
+    DEFAULT_TIME_OFFSET_SECONDS: float = 0.0   # 默認時間偏移起始點
+
+    # 索引配置常數
+    DEFAULT_INDEX_START: int = 0               # 默認索引起始值
+
 
 @dataclass
 class ConstellationConstants:

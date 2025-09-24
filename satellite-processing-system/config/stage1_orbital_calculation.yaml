@@ -1,0 +1,16 @@
+# Stage 1 軌道計算配置
+# Earth Physical Constants (WGS84標準)
+earth_constants:
+  radius_km: 6378.137      # 地球半徑 (km) - WGS84標準
+  mu_km3_s2: 398600.4418   # 地球重力參數 (km³/s²) - WGS84標準
+
+# SGP4 計算配置
+sgp4_config:
+  time_base_strategy: "tle_epoch"  # 強制使用TLE epoch時間
+  enable_compliance_tracking: true  # 啟用合規性追蹤
+
+# 輸出配置
+output_config:
+  include_metadata: true
+  include_time_base_compliance: true
+  coordinate_system: "eci"  # Earth-Centered Inertial

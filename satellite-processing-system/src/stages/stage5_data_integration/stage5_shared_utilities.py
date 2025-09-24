@@ -53,12 +53,16 @@ class AcademicStandardsLoader:
 
     def _create_fallback_config(self) -> Dict[str, Any]:
         """創建基於3GPP標準的緊急備用配置"""
+        # 🔧 修復：使用3GPP標準常數，避免硬編碼註釋
+        from shared.constants.physics_constants import SignalConstants
+        signal_consts = SignalConstants()
+
         return {
             "rsrp_thresholds": {
-                "excellent": NOISE_FLOOR_DBM + 35,  # -85dBm
-                "good": NOISE_FLOOR_DBM + 25,       # -95dBm
-                "fair": NOISE_FLOOR_DBM + 15,       # -105dBm
-                "poor": NOISE_FLOOR_DBM + 5         # -115dBm
+                "excellent": signal_consts.RSRP_EXCELLENT,
+                "good": signal_consts.RSRP_GOOD,
+                "fair": signal_consts.RSRP_FAIR,
+                "poor": signal_consts.RSRP_POOR
             },
             "constellation_params": {
                 "starlink": {

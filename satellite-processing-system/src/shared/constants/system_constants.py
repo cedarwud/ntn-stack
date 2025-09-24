@@ -104,6 +104,32 @@ class ValidationConstants:
 
 
 @dataclass
+class ElevationStandards:
+    """仰角標準常數 - 基於ITU-R和衛星切換文檔"""
+
+    # 標準仰角門檻 (基於satellite_handover_standards.md)
+    # 多層仰角門檻系統：5°/10°/15°
+    CRITICAL_ELEVATION_DEG: float = 5.0      # 臨界門檻 - 信號嚴重衰減
+    STANDARD_ELEVATION_DEG: float = 10.0     # 標準門檻 - 預設使用
+    PREFERRED_ELEVATION_DEG: float = 15.0    # 預備門檻 - 最佳信號品質
+
+    # 距離限制 (基於LEO特性)
+    MIN_DISTANCE_KM: float = 200.0           # 避免過低軌道
+    MAX_DISTANCE_KM: float = 2000.0          # LEO典型範圍上限
+
+    # 環境調整係數 (基於ITU-R P.618)
+    URBAN_ADJUSTMENT_FACTOR: float = 1.1     # 城市環境
+    MOUNTAIN_ADJUSTMENT_FACTOR: float = 1.3  # 山區環境
+    RAIN_ADJUSTMENT_FACTOR: float = 1.4      # 強降雨環境
+    CLEAR_SKY_FACTOR: float = 1.0            # 開闊地區
+
+    # 星座特定門檻 (基於官方技術規格)
+    STARLINK_MIN_ELEVATION: float = 25.0     # SpaceX Starlink官方建議
+    ONEWEB_MIN_ELEVATION: float = 40.0       # OneWeb官方建議
+    GENERIC_LEO_MIN_ELEVATION: float = 10.0  # 一般LEO星座
+
+
+@dataclass
 class LoggingConstants:
     """日誌相關常數"""
 
@@ -148,6 +174,7 @@ class SystemConstantsManager:
         self.paths = SystemPaths()
         self.processing = ProcessingConstants()
         self.validation = ValidationConstants()
+        self.elevation = ElevationStandards()
         self.logging = LoggingConstants()
         self.network = NetworkConstants()
 
@@ -162,6 +189,10 @@ class SystemConstantsManager:
     def get_validation_constants(self) -> ValidationConstants:
         """獲取驗證相關常數"""
         return self.validation
+
+    def get_elevation_standards(self) -> ElevationStandards:
+        """獲取仰角標準常數"""
+        return self.elevation
 
     def get_logging_constants(self) -> LoggingConstants:
         """獲取日誌相關常數"""

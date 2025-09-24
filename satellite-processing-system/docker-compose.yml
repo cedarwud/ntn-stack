@@ -7,6 +7,15 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: satellite-dev
+
+    # 🚀 GPU 支援配置 (RTX 4090) - 已啟用
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     
     # 🔄 開發模式 Volume 掛載
     volumes:
@@ -51,6 +60,9 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_URL=${DATABASE_URL}
+      # 🚀 GPU 支援環境變量
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     
     # 🔌 端口映射 (從 .env 文件讀取)
     ports:

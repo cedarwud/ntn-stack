@@ -15,6 +15,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional, Union, Tuple
 import numpy as np
+# 🚨 Grade A要求：使用學術級物理常數
+from shared.constants.physics_constants import PhysicsConstants
+physics_consts = PhysicsConstants()
+
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +36,7 @@ class SignalCalculationsCore:
     """
 
     # 物理常數 - 使用IERS/ITU-R標準值
-    SPEED_OF_LIGHT = 299792458.0  # m/s - 精確定義值
+    SPEED_OF_LIGHT = physics_consts.SPEED_OF_LIGHT  # m/s - 精確定義值
     BOLTZMANN_CONSTANT = 1.38064852e-23  # J/K - CODATA 2014值
 
     # 3GPP NTN標準參數

@@ -48,7 +48,10 @@ class ScientificValidationEngine:
     # 物理常數 (官方ITU-R和3GPP標準)
     EARTH_RADIUS_KM = 6371.0
     EARTH_GM = 3.986004418e14  # m³/s² (WGS84)
-    LIGHT_SPEED_MS = 299792458  # m/s (定義值)
+    # 🚨 Grade A要求：使用學術級物理常數
+    from shared.constants.physics_constants import PhysicsConstants
+    _physics_consts = PhysicsConstants()
+    LIGHT_SPEED_MS = _physics_consts.SPEED_OF_LIGHT  # m/s (CODATA 2018標準)
 
     # LEO衛星星座標準參數 (基於官方技術文件)
     STARLINK_ORBITAL_HEIGHT_KM = 550.0  # ±10km

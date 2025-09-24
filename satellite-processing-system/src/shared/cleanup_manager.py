@@ -110,18 +110,32 @@ class UnifiedCleanupManager:
             self.logger.info("🔍 檢測到環境變數: PIPELINE_MODE=single")
             return "single_stage"
 
-        # 方法2: 檢查調用堆棧
+        # 方法2: 檢查調用堆棧 - 改進邏輯
         try:
             # 獲取調用堆棧
             frame_info = inspect.stack()
 
-            # 檢查是否從管道腳本調用
+            # 檢查是否從管道腳本調用，且是否為單階段執行
+            pipeline_script_detected = False
             for frame in frame_info:
                 filename = frame.filename
                 if 'run_six_stages' in filename or 'pipeline' in filename:
-                    self.logger.info(f"🔍 檢測到管道腳本調用: {Path(filename).name}")
+                    pipeline_script_detected = True
+                    
+                    # 檢查sys.argv是否包含--stage參數，表示單階段執行
+                    import sys
+                    args = sys.argv
+                    if '--stage' in args:
+                        stage_index = args.index('--stage')
+                        if stage_index + 1 < len(args):
+                            stage_num = args[stage_index + 1]
+                            self.logger.info(f"🔍 檢測到管道腳本單階段執行: stage {stage_num}")
+                            return "single_stage"  # 單階段執行，使用單階段清理策略
+                    
+                    # 沒有--stage參數，是完整管道執行
+                    self.logger.info(f"🔍 檢測到管道腳本完整執行: {Path(filename).name}")
                     return "full_pipeline"
-
+                    
         except Exception as e:
             self.logger.warning(f"調用堆棧檢測失敗: {e}")
 
