@@ -12,6 +12,10 @@ import numpy as np
 import logging
 from typing import Dict, Any, List, Tuple, Optional, Union
 from dataclasses import dataclass
+# 🚨 Grade A要求：使用學術級物理常數
+from shared.constants.physics_constants import PhysicsConstants
+physics_consts = PhysicsConstants()
+
 
 
 logger = logging.getLogger(__name__)
@@ -188,7 +192,7 @@ class MathUtils:
             都卜勒頻移 (Hz)
         """
         try:
-            speed_of_light = 299792458.0  # m/s
+            speed_of_light = physics_consts.SPEED_OF_LIGHT  # m/s
             radial_velocity = velocity_ms * math.cos(angle_rad)
             doppler_hz = (radial_velocity / speed_of_light) * frequency_hz
             return doppler_hz

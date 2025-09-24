@@ -20,6 +20,7 @@ import os
 import json
 import time
 import logging
+import glob
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -50,6 +51,37 @@ except ImportError as e:
     UnifiedLogManager = None
     log_manager = None
 
+def find_latest_stage2_output():
+    """
+    找到最新的 Stage 2 輸出檔案
+    統一檔案讀取模式，移除對符號鏈接的依賴
+
+    Returns:
+        str: 最新的 Stage 2 輸出檔案路徑
+
+    Raises:
+        FileNotFoundError: 如果找不到任何 Stage 2 輸出檔案
+    """
+    stage2_output_dir = "/satellite-processing/data/outputs/stage2"
+
+    # 檢查目錄是否存在
+    if not os.path.exists(stage2_output_dir):
+        # 嘗試相對路徑（用於主機執行）
+        stage2_output_dir = "data/outputs/stage2"
+        if not os.path.exists(stage2_output_dir):
+            raise FileNotFoundError(f"Stage 2輸出目錄不存在")
+
+    # 尋找所有 orbital_computing_output 檔案
+    pattern = os.path.join(stage2_output_dir, "orbital_computing_output_*.json")
+    files = glob.glob(pattern)
+
+    if not files:
+        raise FileNotFoundError(f"Stage 2輸出檔案不存在，查找模式: {pattern}")
+
+    # 選擇最新的檔案（根據修改時間）
+    latest_file = max(files, key=os.path.getmtime)
+    return latest_file
+
 def validate_stage_immediately(stage_processor, processing_results, stage_num, stage_name):
     """
     階段執行後立即驗證
@@ -70,21 +102,33 @@ def validate_stage_immediately(stage_processor, processing_results, stage_num, s
         # 所有階段統一驗證：保存驗證快照（內含自動驗證）
         if hasattr(stage_processor, 'save_validation_snapshot'):
             validation_success = stage_processor.save_validation_snapshot(processing_results)
-            
+
             if validation_success:
-                print(f"✅ 階段{stage_num}驗證通過")
-                return True, f"階段{stage_num}驗證成功"
+                # 🚨 關鍵修復：即使快照生成成功，也要進行嚴格合理性檢查
+                quality_passed, quality_msg = check_validation_snapshot_quality(stage_num)
+                if quality_passed:
+                    print(f"✅ 階段{stage_num}驗證通過")
+                    return True, f"階段{stage_num}驗證成功"
+                else:
+                    print(f"❌ 階段{stage_num}合理性檢查失敗: {quality_msg}")
+                    return False, f"階段{stage_num}合理性檢查失敗: {quality_msg}"
             else:
                 print(f"❌ 階段{stage_num}驗證快照生成失敗")
                 return False, f"階段{stage_num}驗證快照生成失敗"
         else:
-            # 如果沒有驗證方法，只做基本檢查
+            # 🚨 如果沒有驗證方法，直接嚴格檢查
             if not processing_results:
                 print(f"❌ 階段{stage_num}處理結果為空")
                 return False, f"階段{stage_num}處理結果為空"
-            
-            print(f"⚠️ 階段{stage_num}無內建驗證，僅基本檢查通過")
-            return True, f"階段{stage_num}基本檢查通過"
+
+            # 🚨 移除寬鬆回退，直接進行嚴格合理性檢查
+            quality_passed, quality_msg = check_validation_snapshot_quality(stage_num)
+            if quality_passed:
+                print(f"✅ 階段{stage_num}合理性檢查通過")
+                return True, f"階段{stage_num}合理性檢查通過"
+            else:
+                print(f"❌ 階段{stage_num}合理性檢查失敗: {quality_msg}")
+                return False, f"階段{stage_num}合理性檢查失敗: {quality_msg}"
             
     except Exception as e:
         print(f"❌ 階段{stage_num}驗證異常: {e}")
@@ -113,14 +157,73 @@ def check_validation_snapshot_quality(stage_num):
         # 如果沒有academic_standards_check，檢查validation部分
         if 'validation' in snapshot_data:
             validation = snapshot_data['validation']
-            # 修復：使用正確的欄位名 validation_passed 而不是 passed
-            if validation.get('validation_passed', False):
-                grade = validation.get('validation_level_info', {}).get('academic_grade', 'B')
+            # 修復：檢查 validation_status 和 overall_status
+            validation_status = validation.get('validation_status', 'failed')
+            overall_status = validation.get('overall_status', 'FAIL')
+            if validation_status == 'passed' and overall_status == 'PASS':
+                grade = validation.get('detailed_results', {}).get('academic_grade', 'B')
                 return True, f"驗證通過，學術等級: {grade}"
             else:
-                return False, f"驗證未通過: {validation}"
+                return False, f"驗證未通過，狀態: {validation_status}/{overall_status}"
         
-        return True, "基本品質檢查通過"
+        # 🚨 Stage 2特定合理性檢查：衛星數量驗證
+        if stage_num == 2:
+            # 檢查最新輸出文件
+            try:
+                stage2_output_file = find_latest_stage2_output()
+                with open(stage2_output_file, 'r', encoding='utf-8') as f:
+                    stage2_data = json.load(f)
+
+                    # 檢查關鍵數據統計
+                    metadata = stage2_data.get('metadata', {})
+                    processing_stats = stage2_data.get('processing_stats', {})
+                    component_stats = stage2_data.get('component_statistics', {})
+
+                    total_processed = metadata.get('total_satellites_processed', 0)
+                    visible_count = metadata.get('visible_satellites_count', 0)
+                    satellites_dict = stage2_data.get('satellites', {})
+
+                    # 🚨 嚴重問題檢測
+                    critical_issues = []
+
+                    # 檢查1: 處理了大量衛星但可見數量為0 (統計學上不可能)
+                    if total_processed > 1000 and visible_count == 0:
+                        critical_issues.append(f"處理{total_processed}顆衛星但可見數量為0 (統計學上不可能)")
+
+                    # 檢查2: satellites字典為空但聲稱處理成功
+                    if total_processed > 0 and len(satellites_dict) == 0:
+                        critical_issues.append(f"聲稱處理{total_processed}顆衛星但輸出字典為空")
+
+                    # 檢查3: 組件統計與總體統計不一致
+                    sgp4_stats = component_stats.get('sgp4_calculator', {})
+                    sgp4_calculations = sgp4_stats.get('total_calculations', 0)
+                    if total_processed > 100 and sgp4_calculations == 0:
+                        critical_issues.append(f"聲稱處理{total_processed}顆衛星但SGP4計算數為0")
+
+                    # 檢查4: 所有成功率都是0.0
+                    sgp4_success_rate = sgp4_stats.get('success_rate', 0.0)
+                    coord_stats = component_stats.get('coordinate_converter', {})
+                    coord_success_rate = coord_stats.get('success_rate', 0.0)
+                    vis_stats = component_stats.get('visibility_filter', {})
+                    vis_rate = vis_stats.get('visibility_rate', 0.0)
+
+                    if total_processed > 100 and all(rate == 0.0 for rate in [sgp4_success_rate, coord_success_rate, vis_rate]):
+                        critical_issues.append("所有組件成功率都是0.0，表示處理完全失敗")
+
+                    # 如果發現嚴重問題，立即失敗
+                    if critical_issues:
+                        issues_text = "; ".join(critical_issues)
+                        return False, f"❌ Stage 2合理性檢查失敗: {issues_text}"
+
+                # 如果通過了所有檢查，繼續標準驗證
+                if visible_count > 0 and len(satellites_dict) > 0:
+                    return True, f"Stage 2合理性檢查通過: {visible_count}顆可見衛星"
+
+            except Exception as e:
+                return False, f"❌ Stage 2輸出文件解析失敗: {e}"
+
+        # 🚨 嚴格驗證：不接受沒有驗證數據的結果
+        return False, "❌ 缺少驗證數據，無法確認處理品質"
         
     except Exception as e:
         return False, f"品質檢查異常: {e}"
@@ -143,30 +246,31 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
         
         # 根據目標階段運行
         if target_stage == 1:
-            # 階段一：TLE載入與SGP4計算 - 使用新模組化架構
-            print('\n📡 階段一：TLE載入與SGP4軌道計算 (新模組化架構)')
+            # 階段一：數據載入層 - 使用新模組化架構 (SGP4計算移至Stage 2)
+            print('\n📦 階段一：數據載入層 (v2.0模組化架構 - 專注TLE載入)')
             print('-' * 60)
             
-            from stages.stage1_orbital_calculation.tle_orbital_calculation_processor import Stage1TLEProcessor
-            stage1 = Stage1TLEProcessor(
+            # 🔧 統一：使用正確的Stage1DataLoadingProcessor (v2.0模組化架構)
+            from stages.stage1_orbital_calculation.stage1_data_loading_processor import Stage1DataLoadingProcessor
+            stage1 = Stage1DataLoadingProcessor(
                 config={'sample_mode': False, 'sample_size': 500}
             )
-            
+
             results['stage1'] = stage1.execute(input_data=None)
-            
+
             if not results['stage1']:
                 print('❌ 階段一處理失敗')
                 return False, 1, "階段一處理失敗"
-            
+
             # 立即驗證
             validation_success, validation_msg = validate_stage_immediately(
-                stage1, results['stage1'], 1, "TLE載入與SGP4計算"
+                stage1, results['stage1'], 1, "數據載入層"
             )
-            
+
             if not validation_success:
                 print(f'❌ 階段一驗證失敗: {validation_msg}')
                 return False, 1, validation_msg
-            
+
             print(f'✅ 階段一完成並驗證通過')
             return True, 1, "階段一成功完成"
             
@@ -175,8 +279,8 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
             print('\n🎯 階段二：智能衛星篩選 (新模組化架構)')
             print('-' * 60)
             
-            from stages.stage2_visibility_filter.satellite_visibility_filter_processor import SatelliteVisibilityFilterProcessor as Stage2Processor
-            stage2 = Stage2Processor(debug_mode=False)  # 修正：只傳入debug_mode參數
+            from stages.stage2_orbital_computing.optimized_stage2_processor import OptimizedStage2Processor as Stage2Processor
+            stage2 = Stage2Processor(enable_optimization=True)
             
             results['stage2'] = stage2.execute()
             
@@ -206,8 +310,8 @@ def run_stage_specific(target_stage, validation_level='STANDARD'):
 
             # 載入階段二的輸出作為階段三的輸入
             import json
-            stage2_output_file = "/satellite-processing/data/outputs/stage2/stage2_complete_aggregation_output.json"
             try:
+                stage2_output_file = find_latest_stage2_output()
                 with open(stage2_output_file, 'r', encoding='utf-8') as f:
                     stage2_data = json.load(f)
 
@@ -407,12 +511,12 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         print('\n🔄 階段二：軌道計算層 (v2.0模組化架構)')
         print('-' * 60)
         
-        from stages.stage2_visibility_filter.stage2_orbital_computing_processor import Stage2OrbitalComputingProcessor
-        stage2 = Stage2OrbitalComputingProcessor(
-            config={'min_elevation_deg': 10.0, 'prediction_horizon_hours': 24}
-        )
+        from stages.stage2_orbital_computing.optimized_stage2_processor import OptimizedStage2Processor
+        stage2 = OptimizedStage2Processor(enable_optimization=True)
 
-        results['stage2'] = stage2.process(results['stage1'])
+        # 🔧 修復：Stage 1返回ProcessingResult對象，需要提取data部分傳遞給Stage 2
+        stage1_data = results['stage1'].data if hasattr(results['stage1'], 'data') else results['stage1']
+        results['stage2'] = stage2.execute(stage1_data)
         
         if not results['stage2']:
             print('❌ 階段二處理失敗')
@@ -451,7 +555,9 @@ def run_all_stages_sequential(validation_level='STANDARD'):
         
         from stages.stage3_signal_analysis.stage3_signal_analysis_processor import Stage3SignalAnalysisProcessor
         # 🔧 修復：使用記憶體傳遞模式，避免重複讀取檔案
-        stage3 = Stage3SignalAnalysisProcessor(input_data=results['stage2'])
+        # 🔧 修復：Stage 2可能返回ProcessingResult對象，需要提取data部分
+        stage2_data = results['stage2'].data if hasattr(results['stage2'], 'data') else results['stage2']
+        stage3 = Stage3SignalAnalysisProcessor(input_data=stage2_data)
         
         results['stage3'] = stage3.execute()
         

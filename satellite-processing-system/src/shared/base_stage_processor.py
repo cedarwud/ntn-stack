@@ -14,9 +14,11 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Dict, Any, Optional
 
+from .interfaces.processor_interface import BaseProcessor
+
 logger = logging.getLogger(__name__)
 
-class BaseStageProcessor(ABC):
+class BaseStageProcessor(BaseProcessor):
     """
     基礎階段處理器抽象類
     
@@ -26,14 +28,16 @@ class BaseStageProcessor(ABC):
     def __init__(self, stage_name: str, config: Dict[str, Any] = None):
         """
         初始化基礎處理器
-        
+
         Args:
             stage_name: 階段名稱
             config: 配置字典
         """
+        # 調用父類構造函數
+        super().__init__(processor_name=stage_name, config=config)
+
         self.stage_name = stage_name
-        self.config = config or {}
-        
+
         # 處理統計
         self.stats = {
             "stage_name": stage_name,
@@ -43,17 +47,43 @@ class BaseStageProcessor(ABC):
             "success": False,
             "error_message": None
         }
-        
+
         logger.info(f"初始化 {stage_name} 處理器")
     
+    @abstractmethod
+    def validate_input(self, input_data: Any) -> Dict[str, Any]:
+        """
+        驗證輸入數據
+
+        Args:
+            input_data: 輸入數據
+
+        Returns:
+            驗證結果 {'valid': bool, 'errors': List[str], 'warnings': List[str]}
+        """
+        pass
+
+    @abstractmethod
+    def validate_output(self, output_data: Any) -> Dict[str, Any]:
+        """
+        驗證輸出數據
+
+        Args:
+            output_data: 輸出數據
+
+        Returns:
+            驗證結果 {'valid': bool, 'errors': List[str], 'warnings': List[str]}
+        """
+        pass
+
     @abstractmethod
     def process(self, input_data: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         執行處理邏輯 (抽象方法)
-        
+
         Args:
             input_data: 輸入數據
-            
+
         Returns:
             Dict[str, Any]: 處理結果
         """

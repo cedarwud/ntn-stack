@@ -1,13 +1,14 @@
 FROM python:3.11-slim
 
-# 設置工作目錄  
+# 設置工作目錄
 WORKDIR /satellite-processing
 
-# 安裝系統依賴
+# 🛠️ 安裝基礎開發工具（GPU通過nvidia-container-runtime提供）
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # 複製 Python 依賴定義

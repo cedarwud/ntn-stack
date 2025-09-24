@@ -18,7 +18,7 @@ class PipelineCoordinator:
     
     def _load_stages_registry(self):
         """載入階段註冊表"""
-        from stages.stage1_orbital_calculation.tle_orbital_calculation_processor import Stage1TLEProcessor
+        from stages.stage1_orbital_calculation.stage1_data_loading_processor import Stage1DataLoadingProcessor
         from pipeline.stages.stage2_visibility_filter.stage2_processor import Stage2Processor
         from pipeline.stages.stage3_timeseries_preprocessing.stage3_processor import Stage3Processor
         from pipeline.stages.stage4_signal_analysis.stage4_processor import Stage4Processor
@@ -26,7 +26,7 @@ class PipelineCoordinator:
         from pipeline.stages.stage6_dynamic_planning.stage6_processor import Stage6Processor
         
         self.stages_registry = {
-            1: Stage1TLEProcessor,  # ✅ Stage1TLEProcessor - 已實施
+            1: Stage1DataLoadingProcessor,  # ✅ Stage1DataLoadingProcessor (v2.0模組化架構) - 已實施
             2: Stage2Processor,  # ✅ Stage2Processor - 已實施
             3: Stage3Processor,  # ✅ Stage3Processor - 已實施
             4: Stage4Processor,  # ✅ Stage4Processor - 已實施

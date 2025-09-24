@@ -40,7 +40,7 @@ class HandoverScenarioEngine:
             # 使用學術標準配置動態計算
             try:
                 excellent_threshold = self.standards_config.get_rsrp_threshold("excellent")  # 通常 -70dBm
-                good_threshold = self.standards_config.get_rsrp_threshold("good")  # 通常 -85dBm
+                good_threshold = self.standards_config.get_rsrp_threshold("good")  # 動態從學術標準取得
                 poor_threshold = self.standards_config.get_rsrp_threshold("poor")  # 通常 -100dBm
 
                 # 獲取噪聲門檻
@@ -49,7 +49,7 @@ class HandoverScenarioEngine:
 
                 # 基於3GPP TS 36.331標準的A4/A5事件動態計算
                 margin_db = 5  # 3GPP標準邊際
-                a4_threshold = good_threshold - margin_db  # 動態計算：約-90dBm
+                a4_threshold = good_threshold - margin_db  # 動態計算從學術標準
                 a5_threshold_1 = poor_threshold - margin_db  # 動態計算：約-105dBm
                 a5_threshold_2 = excellent_threshold - margin_db  # 動態計算：約-75dBm
 
@@ -61,7 +61,7 @@ class HandoverScenarioEngine:
                 good_margin = 35        # 良好信號邊際
                 poor_margin = 20        # 可用信號邊際
 
-                a4_threshold = noise_floor_dbm + good_margin - 5   # 動態計算：-90dBm
+                a4_threshold = noise_floor_dbm + good_margin - 5   # 動態計算從噪聲門檻
                 a5_threshold_1 = noise_floor_dbm + poor_margin - 5  # 動態計算：-105dBm
                 a5_threshold_2 = noise_floor_dbm + excellent_margin - 5  # 動態計算：-75dBm
         else:
@@ -71,7 +71,7 @@ class HandoverScenarioEngine:
             good_margin = 35        # 良好信號邊際
             poor_margin = 20        # 可用信號邊際
 
-            a4_threshold = noise_floor_dbm + good_margin - 5   # 動態計算：-90dBm
+            a4_threshold = noise_floor_dbm + good_margin - 5   # 動態計算從噪聲門檻
             a5_threshold_1 = noise_floor_dbm + poor_margin - 5  # 動態計算：-105dBm
             a5_threshold_2 = noise_floor_dbm + excellent_margin - 5  # 動態計算：-75dBm
 
@@ -84,7 +84,7 @@ class HandoverScenarioEngine:
         # 3GPP換手配置：完全基於標準動態計算，零硬編碼
         self.gpp_handover_config = {
             "A4": {
-                "threshold_dbm": a4_threshold,  # 動態計算：約-90dBm
+                "threshold_dbm": a4_threshold,  # 動態計算從標準配置
                 "description": "Serving becomes worse than threshold (3GPP TS 36.331)",
                 "calculation_source": self.handover_config_source,
                 "physical_basis": f"NoiseFloor({noise_floor_dbm}dBm) + GoodMargin - EventMargin"
@@ -443,8 +443,10 @@ class HandoverScenarioEngine:
     
     def _estimate_handover_time_window(self, current_rsrp: float, degradation_rate: float) -> Dict[str, Any]:
         """估算換手時間窗口"""
-        # 估算到達最小可用RSRP的時間
-        min_usable_rsrp = -120  # dBm
+        # 估算到達最小可用RSRP的時間 - 基於學術標準配置
+        from shared.constants.physics_constants import SignalConstants
+        signal_consts = SignalConstants()
+        min_usable_rsrp = signal_consts.NOISE_FLOOR_DBM  # 動態從標準常數取得
         
         if degradation_rate >= 0:
             # 信號穩定或改善
@@ -624,9 +626,13 @@ class HandoverScenarioEngine:
             standards_config = AcademicStandardsConfig()
             rsrp_config = standards_config.get_3gpp_parameters()["rsrp"]
 
-            excellent_threshold = rsrp_config.get("high_quality_dbm", -70)
-            good_threshold = rsrp_config.get("good_threshold_dbm", -85)
-            fair_threshold = rsrp_config.get("fair_threshold_dbm", -95)
+            # 🔧 修復：使用3GPP標準常數
+            from shared.constants.physics_constants import SignalConstants
+            signal_consts = SignalConstants()
+
+            excellent_threshold = rsrp_config.get("high_quality_dbm", signal_consts.RSRP_EXCELLENT)
+            good_threshold = rsrp_config.get("good_threshold_dbm", signal_consts.RSRP_GOOD)
+            fair_threshold = rsrp_config.get("fair_threshold_dbm", signal_consts.RSRP_FAIR)
 
             # 動態計算仰角標準基於ITU-R P.618標準
             itu_config = standards_config.get_itu_standards()
@@ -640,7 +646,7 @@ class HandoverScenarioEngine:
             # 3GPP標準緊急備用值
             noise_floor = -120  # 3GPP TS 38.214標準噪聲門檻
             excellent_threshold = noise_floor + 50  # 動態計算：-70dBm
-            good_threshold = noise_floor + 35       # 動態計算：-85dBm
+            good_threshold = noise_floor + 35       # 動態計算從噪聲門檻
             fair_threshold = noise_floor + 25       # 動態計算：-95dBm
 
             # ITU-R P.618標準備用值

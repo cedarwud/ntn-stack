@@ -1,80 +1,76 @@
 """
-Stage 6 Dynamic Planning - 模組化動態池規劃處理器
+Stage 6 Persistence API - v2.0 模組化架構
 
-此模組提供動態衛星池規劃的完整實現，專注於：
-- 智能軌道相位選擇策略
-- 時空錯置理論實戰應用  
-- 動態覆蓋需求優化
-- 軌道週期完整驗證
+按照 @docs/stages/stage6-persistence-api.md 重構實現，專注於：
+- 數據持久化與存儲管理
+- 多層快取策略（L1記憶體、L2 Redis、L3磁碟）
+- RESTful API和GraphQL服務
+- 實時WebSocket事件推送
 
-模組化設計特色：
-- 20+個專業組件各司其職 (重構後統一)
-- 革命性除錯能力
-- 學術級標準合規
-- 完整物理計算驗證
+v2.0 架構特色：
+- 從44個檔案精簡到約10個核心檔案（75%減少）
+- 統一存儲管理（替代8個分散的備份模組）
+- 服務導向設計（專注於API服務和數據提供）
+- 高性能快取和存儲策略
 
-重構變更記錄：
-- ✅ 統一兩個Stage 6目錄結構
-- ✅ 移除越界功能 (RL預處理引擎 → Stage 4)
-- ✅ 強化動態池規劃專責功能
+核心模組：
+- StorageManager: 統一存儲管理
+- CacheManager: 多層快取管理
+- APIService: RESTful API服務
+- WebSocketService: 實時數據推送
+- Stage6PersistenceProcessor: 服務協調
 """
 
-# ✅ 修復跨階段違規：移除 DataIntegrationLoader (直接讀取Stage 5文件)
-from .stage6_main_processor import Stage6MainProcessor  # 使用修復版主處理器
-from .candidate_converter import CandidateConverter
-from .satellite_selection_engine import SatelliteSelectionEngine
-from .physics_calculation_engine import PhysicsCalculationEngine
-from .scientific_validation_engine import ScientificValidationEngine
-from .output_generator import OutputGenerator
+# 🎯 v2.0 核心模組（按照文檔架構）
+from .storage_manager import StorageManager
+from .cache_manager import CacheManager
+from .api_service import APIService
+from .websocket_service import WebSocketService
+from .stage6_main_processor import Stage6PersistenceProcessor  # 重構後的主處理器
 
-# ✅ 新增合規組件
-from .pool_generation_engine import PoolGenerationEngine
-from .satellite_candidate_generator import SatelliteCandidateGenerator
+# 📦 向後相容性支援（將逐步淘汰）
+try:
+    from .pool_generation_engine import PoolGenerationEngine
+    from .pool_optimization_engine import PoolOptimizationEngine
+    from .coverage_validation_engine import CoverageValidationEngine
+    from .scientific_validation_engine import ScientificValidationEngine
+    LEGACY_COMPONENTS_AVAILABLE = True
+except ImportError:
+    LEGACY_COMPONENTS_AVAILABLE = False
 
-# 🔄 重構後的三層優化架構
-from .optimization_coordinator import OptimizationCoordinator
-from .coverage_optimizer import CoverageOptimizer
-from .temporal_optimizer import TemporalOptimizer
-from .pool_optimizer import PoolOptimizer
+# 🏭 工廠函數（推薦使用）
+def create_stage6_processor(config=None):
+    """
+    創建 Stage 6 處理器的工廠函數
 
-# 🗂️ 保留相容性：舊版優化器（已棄用）
-# from .dynamic_coverage_optimizer import DynamicCoverageOptimizer  # ❌ 已重構為 TemporalOptimizer
-# from .pool_optimization_engine import PoolOptimizationEngine      # ❌ 已重構為 PoolOptimizer
+    Args:
+        config: 配置字典（可選）
 
-# 🆕 備份管理模組化架構
-from .backup_satellite_manager import BackupSatelliteManager
-from .backup_pool_manager import BackupPoolManager
-from .backup_switching_engine import BackupSwitchingEngine
-from .backup_monitoring_service import BackupMonitoringService
-from .backup_adaptation_controller import BackupAdaptationController
+    Returns:
+        Stage6PersistenceProcessor 實例
+    """
+    return Stage6PersistenceProcessor(config)
 
-# ✅ 修復跨階段違規：使用接口版本替代違規的軌跡預測引擎
-from .trajectory_interface import TrajectoryInterface  # 替代 trajectory_prediction_engine.py
-
+# 📋 導出列表（v2.0 精簡版）
 __all__ = [
-    "Stage6MainProcessor",  # ✅ 使用修復版處理器
-    # "DataIntegrationLoader",  # ❌ 移除：違反架構邊界
-    "CandidateConverter",
-    "SatelliteSelectionEngine",
-    "PhysicsCalculationEngine",
-    "ScientificValidationEngine",
-    "OutputGenerator",
-    "PoolGenerationEngine",
-    "SatelliteCandidateGenerator",
-    "TrajectoryInterface",  # ✅ 修復版軌跡接口
-    # 🔄 重構後的三層優化架構
-    "OptimizationCoordinator",
-    "CoverageOptimizer",
-    "TemporalOptimizer",
-    "PoolOptimizer",
-    # 🆕 備份管理模組化架構
-    "BackupSatelliteManager",
-    "BackupPoolManager",
-    "BackupSwitchingEngine",
-    "BackupMonitoringService",
-    "BackupAdaptationController"
+    # v2.0 核心模組
+    "StorageManager",
+    "CacheManager",
+    "APIService",
+    "WebSocketService",
+    "Stage6PersistenceProcessor",
+    # 工廠函數
+    "create_stage6_processor",
+    # 向後相容性
+    "LEGACY_COMPONENTS_AVAILABLE"
 ]
 
-__version__ = "1.0.0"
-__module_type__ = "dynamic_planning_processor"
+# 📊 模組元數據
+__version__ = "2.0.0"
+__module_type__ = "persistence_api_processor"
 __academic_grade__ = "A"
+__architecture__ = "v2.0_modular_simplified"
+__documentation__ = "@docs/stages/stage6-persistence-api.md"
+
+# 🔧 相容性別名（逐步淘汰）
+Stage6MainProcessor = Stage6PersistenceProcessor  # 向後相容性

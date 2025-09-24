@@ -47,17 +47,8 @@ data/outputs/*                   # 整個輸出目錄內容 (>1GB 單檔)
 data/validation_snapshots/*      # 驗證快照目錄內容
 !data/validation_snapshots/.gitkeep  # 但保留目錄結構
 data/logs/*.log
-*.tle
 *.csv
 *.parquet
-
-# 🛰️ 處理結果目錄 (重新執行可獲得)
-data/tle_calculation_outputs/    # 階段一專用輸出
-data/intelligent_filtering_outputs/  # 階段二專用輸出  
-data/signal_analysis_outputs/    # 階段三專用輸出
-data/timeseries_preprocessing_outputs/  # 階段四專用輸出
-data/data_integration_outputs/   # 階段五專用輸出
-data/dynamic_pool_planning_outputs/  # 階段六專用輸出
 
 # 🐳 Docker
 .dockerignore

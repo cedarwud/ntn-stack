@@ -257,6 +257,28 @@ python /home/sat/ntn-stack/sync_pipeline.py
 curl -s http://localhost:8080/api/v1/pipeline/statistics | jq '.stages[] | {stage: .stage, execution_time: .execution_time}'
 ```
 
+### ⏰ **執行時間配置 (重要!)**
+各階段建議timeout時間設定：
+- **階段一**: 120秒 (TLE數據載入，約8,976顆衛星)
+- **階段二**: **900秒 (15分鐘)** ⚠️ **最耗時** - SGP4軌道計算+可見性分析
+- **階段三**: 300秒 (信號品質分析)
+- **階段四**: 180秒 (時間序列預處理)
+- **階段五**: 240秒 (數據整合)
+- **階段六**: 360秒 (動態池規劃)
+
+```bash
+# ✅ 正確的執行指令範例
+timeout 120 docker exec satellite-dev bash -c "cd /satellite-processing && python scripts/run_six_stages_with_validation.py --stage 1"
+timeout 900 docker exec satellite-dev bash -c "cd /satellite-processing && python scripts/run_six_stages_with_validation.py --stage 2"  # 15分鐘
+timeout 300 docker exec satellite-dev bash -c "cd /satellite-processing && python scripts/run_six_stages_with_validation.py --stage 3"
+```
+
+**⚠️ 階段二特別注意**:
+- 處理8,976顆衛星需要5-8分鐘
+- 包含SGP4軌道計算（最耗時）+ 座標轉換 + 可見性分析
+- 輸出約2GB數據 (2,000+顆可行衛星)
+- 如果timeout過短會產生背景殘留進程
+
 ### ⚠️ 禁止事項
 - **❌ 禁止部分執行** - 必須完整執行全部六階段
 - **❌ 禁止跳過清理** - 每次都必須先清理
