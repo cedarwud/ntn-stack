@@ -40,10 +40,10 @@ class SceneManagementService:
                 return False
 
             # 檢查 2: XML 格式問題 - NTPU 和 Nanliao 有已知問題
-            problematic_scenes = ["NTPU", "Nanliao", "NTPU_v2"]
+            problematic_scenes = ["NTPU", "Nanliao", "NTPU"]
             
             if scene_name in problematic_scenes:
-                if scene_name in ["NTPU", "NTPU_v2"]:
+                if scene_name in ["NTPU", "NTPU"]:
                     logger.warning(
                         f"⚠️  注意：{scene_name} 場景的 XML 文件不相容於 Sionna "
                         f"（HolderMaterial 配置錯誤：只允許一個嵌套radio material），"

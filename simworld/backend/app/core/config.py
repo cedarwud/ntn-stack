@@ -76,7 +76,7 @@ def get_scene_xml_path(scene_name: str, xml_name: str = None) -> str:
         "nycu": "NYCU",
         "lotus": "Lotus",
         "nanliao": "Nanliao",
-        "ntpu": "NTPU_v2",
+        "ntpu": "NTPU",
     }
 
     # 獲取實際的目錄名稱

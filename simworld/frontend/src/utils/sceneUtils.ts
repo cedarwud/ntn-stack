@@ -4,7 +4,7 @@
 
 // 場景名稱映射：前端路由參數 -> 後端場景目錄名稱
 export const SCENE_MAPPING = {
-    ntpu: 'NTPU_v2',
+    ntpu: 'NTPU',
     nanliao: 'Nanliao',
     nycu: 'NYCU',
     lotus: 'Lotus',
@@ -76,7 +76,7 @@ export function getSceneTextureName(sceneParam: string): string {
             return 'EXPORT_GOOGLE_SAT_WM.png'
         case 'Lotus':
             return 'EXPORT_GOOGLE_SAT_WM.png'  // 假設 Lotus 也使用相同的紋理檔案
-        case 'NTPU_v2':
+        case 'NTPU':
             return 'EXPORT_GOOGLE_SAT_WM.png'  // 臺北大學v2使用相同的紋理檔案
         case 'Nanliao':
             return 'EXPORT_GOOGLE_SAT_WM.png'  // 南寮漁港使用相同的紋理檔案

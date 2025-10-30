@@ -124,7 +124,7 @@ else
 fi
 
 # Test scene serving  
-if curl -s "http://localhost:8888/static/scenes/NTPU_v2/NTPU_v2.glb" -I | grep -q "200 OK"; then
+if curl -s "http://localhost:8888/static/scenes/NTPU/NTPU.glb" -I | grep -q "200 OK"; then
     echo "✅ 3D 場景服務正常"
 else
     echo "❌ 3D 場景服務異常"

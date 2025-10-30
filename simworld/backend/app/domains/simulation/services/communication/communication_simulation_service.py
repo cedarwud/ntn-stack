@@ -388,7 +388,7 @@ class CommunicationSimulationService:
                 MockDevice("NYCU_RX_1", 24.7850, 120.9950, 10.0, 0.0),
                 MockDevice("NYCU_RX_2", 24.7855, 120.9955, 15.0, 0.0),
             ]
-        elif scene_name.lower() == "ntpu" or scene_name.lower() == "ntpu_v2":
+        elif scene_name.lower() == "ntpu" or scene_name.lower() == "ntpu":
             # NTPU 場景設備配置
             default_desired = [
                 MockDevice("NTPU_TX_1", 24.9427, 121.3669, 80.0, 28.0),
